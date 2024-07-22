@@ -1,8 +1,16 @@
 import Dashboard from "./components/Dashboard";
+import { useState } from "react";
+import ThemeContext from "./context/ThemeContext";
 
 
 function App() {
-  return <Dashboard/>;
+  const [darkMode, setDarkMode] = useState(false);
+  const [stockSymbol, setStockSymbol] = useState("FB");
+  return (
+    <ThemeContext.Provider value={{ darkMode, setDarkMode }}>
+      <Dashboard />
+    </ThemeContext.Provider>
+  );
 
 }
 
