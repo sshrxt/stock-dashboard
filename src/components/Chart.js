@@ -1,6 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { mockHistoricalData } from "../constants/mock";
-import { convertUnixTimestampToDate } from "../helpers/date-helper";
+import {
+  convertUnixTimestampToDate,
+  convertDateToUnixTimestamp,
+  createDate,
+} from "../helpers/date-helper";
 import {
   Area,
   XAxis,
@@ -13,6 +17,9 @@ import Card from "./Card";
 import { chartConfig } from "../constants/config";
 import ChartFilter from "./ChartFilter";
 import ThemeContext from "../context/ThemeContext";
+import { fetchHistoricalData } from "../api/stock-api";
+import StockContext from "../context/StockContext";
+import { fetchHistoricalDataAlphaVantage } from "../api/stock-api";
 
 const Chart = () => {
   const [data, setData] = useState(mockHistoricalData);
@@ -20,6 +27,8 @@ const Chart = () => {
   const [filter, setFilter] = useState("1W");
 
   const { darkMode } = useContext(ThemeContext);
+
+  const { stockSymbol } = useContext(StockContext);
 
   const formatData = (data) => {
     return data.c.map((item, index) => {
@@ -29,6 +38,48 @@ const Chart = () => {
       };
     });
   };
+  
+  const formatAlphaData = (data) => {
+    return Object.entries(data).map(([date, item]) => {
+        return {
+          value: item["1. open"], // Format the 'close' value with 2 decimal places
+          date: date
+        };
+      });
+  }
+
+  useEffect(() => {
+    const updateChartData = async () => {
+      try {
+        const url = `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${stockSymbol}&apikey=X537RXX81FAGF1SU`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          const message = `An error has occurred: ${response.status}`;
+          throw new Error(message);
+        }
+
+        const data = await response.json();
+        const monthlyData = data["Monthly Time Series"];
+
+        const filteredData = {};
+        const cutoffDate = new Date();
+        cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
+
+        for (const [date, values] of Object.entries(monthlyData)) {
+          const recordDate = new Date(date);
+          if (recordDate >= cutoffDate) {
+            filteredData[date] = values;
+          }
+        }
+        setData(filteredData)
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    updateChartData();
+  }, [stockSymbol]);
 
   return (
     <Card>
@@ -46,7 +97,7 @@ const Chart = () => {
         ))}
       </ul>
       <ResponsiveContainer>
-        <AreaChart data={formatData(data)}>
+        <AreaChart data={formatAlphaData(data).reverse()}>
           <defs>
             <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
               <stop
